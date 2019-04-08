@@ -4,7 +4,7 @@
 We use Python 3.5.6 on macOS High Sierra. Other setups may work but have not been tested.
 
 ## Installation
-First install (https://github.com/tomsilver/generalization_grid_games)[generalization_grid_games].
+First install [https://github.com/tomsilver/generalization_grid_games](generalization_grid_games).
 
 Then
 ```
