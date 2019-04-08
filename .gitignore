@@ -1,0 +1,7 @@
+.DS_Store
+__pycache__
+*.egg-info
+*.pyc
+*.pkl
+*.npy
+*.npz
