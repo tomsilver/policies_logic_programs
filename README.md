@@ -1,4 +1,6 @@
-# Few-shot Bayesian Imitation Learning with Policies as Logic over Programs
+---
+title: Few-shot Bayesian Imitation Learning with Policies as Logic over Programs
+---
 
 ## System Requirements
 We use Python 3.5.6 on macOS High Sierra. Other setups may work but have not been tested.
