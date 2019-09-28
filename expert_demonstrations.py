@@ -2,7 +2,6 @@ from env_settings import *
 from utils import run_single_episode
 
 import gym
-import minigames
 import os
 
 import numpy as np

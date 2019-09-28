@@ -10,7 +10,7 @@ from utils import run_single_episode
 from collections import defaultdict
 from functools import partial
 from sklearn.tree import DecisionTreeClassifier
-from scipy.misc import logsumexp
+from scipy.special import logsumexp
 from scipy.sparse import csr_matrix, lil_matrix, vstack
 
 import gym
