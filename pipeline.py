@@ -289,16 +289,16 @@ def compute_likelihood_single_plp(demonstrations, plp):
         if not plp(obs, action):
             return -np.inf
 
-            size = 1
+        size = 1
 
-            for r in range(obs.shape[0]):
-                for c in range(obs.shape[1]):
-                    if (r, c) == action:
-                        continue
-                    if plp(obs, (r, c)):
-                        size += 1
+        for r in range(obs.shape[0]):
+            for c in range(obs.shape[1]):
+                if (r, c) == action:
+                    continue
+                if plp(obs, (r, c)):
+                    size += 1
 
-            ll += np.log(1. / size)
+        ll += np.log(1. / size)
 
     return ll
 
@@ -389,6 +389,6 @@ def test(policy, base_class_name, test_env_nums=range(11, 20), max_num_steps=50,
     return accuracies
 
 if __name__  == "__main__":
-    policy = train("TwoPileNim", range(11), 1, 250, 5, 25)
-    test_results = test(policy, "TwoPileNim", range(11, 20), record_videos=True)
+    policy = train("TwoPileNim", range(11), 1, 31, 5, 25)
+    test_results = test(policy, "TwoPileNim", range(11, 20), record_videos=False)
     print("Test results:", test_results)
