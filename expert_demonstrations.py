@@ -147,7 +147,7 @@ def expert_rfts_policy(layout):
         # stairs do not exist
         sr, sc = star_r+1, star_c
         while sc > agent_c:
-            if layout[sr, sc] == rfts.FLOOR:
+            if sr >= layout.shape[0] - 2:
                 break
             if layout[sr, sc] != rfts.DRAWN:
                 return (sr, sc)
@@ -166,7 +166,7 @@ def expert_rfts_policy(layout):
         # stairs do not exist
         sr, sc = star_r+1, star_c
         while sc < agent_c:
-            if layout[sr, sc] == rfts.FLOOR:
+            if sr >= layout.shape[0] - 2:
                 break
             if layout[sr, sc] != rfts.DRAWN:
                 return (sr, sc)
