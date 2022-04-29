@@ -19,6 +19,10 @@ import numpy as np
 import time
 import os
 
+from tqdm import tqdm
+
+from lbforaging.foraging.environment import Action as lba
+
 cache_dir = 'cache'
 
 
@@ -55,6 +59,7 @@ def get_program_set(base_class_name, num_programs):
 
     return programs, program_prior_log_probs
 
+
 def extract_examples_from_demonstration_item(demonstration_item):
     """
     Convert a demonstrated (state, action) into positive and negative classification data.
@@ -63,29 +68,29 @@ def extract_examples_from_demonstration_item(demonstration_item):
 
     Parameters
     ----------
-    demonstrations : (np.ndarray, (int, int))
-        A state, action pair.
+    demonstrations : (np.ndarray, int, (int, int))
+        A state, action, agent position pair.
 
     Returns
     -------
-    positive_examples : [(np.ndarray, (int, int))]
-        A list with just the input state, action pair (for convenience).
-    negative_examples : [(np.ndarray, (int, int))]
-        A list with negative examples of state, actions.
+    positive_examples : [(np.ndarray, int, (int, int))]
+        A list with just the input state, action, position pair (for convenience).
+    negative_examples : [(np.ndarray, int, (int, int))]
+        A list with negative examples of state, action, positons paris
     """
-    state, action = demonstration_item
+    state, action, pos = demonstration_item
 
-    positive_examples = [(state, action)]
+    positive_examples = [(state, action, pos)]
     negative_examples = []
 
-    for r in range(state.shape[0]):
-        for c in range(state.shape[1]):
-            if (r, c) == action:
-                continue
-            else:
-                negative_examples.append((state, (r, c)))
+    for a in [lba.NONE, lba.NORTH, lba.SOUTH, lba.WEST, lba.EAST, lba.LOAD]:
+        if a.value == action:
+            continue
+
+        negative_examples.append((state, a.value, pos))
 
     return positive_examples, negative_examples
+
 
 def extract_examples_from_demonstration(demonstration):
     """
@@ -113,6 +118,7 @@ def extract_examples_from_demonstration(demonstration):
 
     return positive_examples, negative_examples
 
+
 def apply_programs(programs, fn_input):
     """
     Worker function that applies a list of programs to a single given input.
@@ -132,6 +138,7 @@ def apply_programs(programs, fn_input):
         x_i = program(*fn_input)
         x.append(x_i)
     return x
+
 
 @manage_cache(cache_dir, ['.npz', '.pkl'])
 def run_all_programs_on_single_demonstration(base_class_name, num_programs, demo_number, program_interval=1000):
@@ -176,26 +183,24 @@ def run_all_programs_on_single_demonstration(base_class_name, num_programs, demo
     X = lil_matrix((num_data, num_programs), dtype=bool)
 
     # This loop avoids memory issues
-    for i in range(0, num_programs, program_interval):
+    for i in tqdm(range(0, num_programs, program_interval)):
         end = min(i+program_interval, num_programs)
-        print('Iteration {} of {}'.format(i, num_programs), end='\r')
 
         num_workers = multiprocessing.cpu_count()
         pool = multiprocessing.Pool(num_workers)
 
         fn = partial(apply_programs, programs[i:end])
         fn_inputs = positive_examples + negative_examples
-        
+
         results = pool.map(fn, fn_inputs)
         pool.close()
 
         for X_idx, x in enumerate(results):
             X[X_idx, i:end] = x
-
     X = X.tocsr()
-
     print()
     return X, y
+
 
 def run_all_programs_on_demonstrations(base_class_name, num_programs, demo_numbers):
     """
@@ -217,6 +222,7 @@ def run_all_programs_on_demonstrations(base_class_name, num_programs, demo_numbe
 
     return X, y
 
+
 def learn_single_batch_decision_trees(y, num_dts, X_i):
     """
     Parameters
@@ -237,6 +243,7 @@ def learn_single_batch_decision_trees(y, num_dts, X_i):
         clfs.append(clf)
 
     return clfs
+
 
 def learn_plps(X, y, programs, program_prior_log_probs, num_dts=5, program_generation_step_size=10):
     """
@@ -260,14 +267,14 @@ def learn_plps(X, y, programs, program_prior_log_probs, num_dts=5, program_gener
 
     num_programs = len(programs)
 
-    for i in range(0, num_programs, program_generation_step_size):
-        print("Learning plps with {} programs".format(i))
+    for i in tqdm(range(0, num_programs, program_generation_step_size), desc="Learning plps with # programs"):
         for clf in learn_single_batch_decision_trees(y, num_dts, X[:, :i+1]):
             plp, plp_prior_log_prob = extract_plp_from_dt(clf, programs, program_prior_log_probs)
             plps.append(plp)
             plp_priors.append(plp_prior_log_prob)
 
     return plps, plp_priors
+
 
 def compute_likelihood_single_plp(demonstrations, plp):
     """
@@ -276,7 +283,7 @@ def compute_likelihood_single_plp(demonstrations, plp):
     demonstrations : [(np.ndarray, (int, int))]
         State, action pairs.
     plp : StateActionProgram
-    
+
     Returns
     -------
     likelihood : float
@@ -284,23 +291,23 @@ def compute_likelihood_single_plp(demonstrations, plp):
     """
     ll = 0.
 
-    for obs, action in demonstrations:
+    for obs, action, pos in demonstrations:
 
-        if not plp(obs, action):
+        if not plp(obs, action, pos):
             return -np.inf
 
         size = 1
 
-        for r in range(obs.shape[0]):
-            for c in range(obs.shape[1]):
-                if (r, c) == action:
-                    continue
-                if plp(obs, (r, c)):
-                    size += 1
+        for a in [lba.NONE, lba.NORTH, lba.SOUTH, lba.WEST, lba.EAST, lba.LOAD]:
+            if a.value == action:
+                continue
+            if plp(obs, a, pos):
+                size += 1
 
         ll += np.log(1. / size)
 
     return ll
+
 
 def compute_likelihood_plps(plps, demonstrations):
     """
@@ -315,6 +322,7 @@ def compute_likelihood_plps(plps, demonstrations):
 
     return likelihoods
 
+
 def select_particles(particles, particle_log_probs, max_num_particles):
     """
     Parameters
@@ -328,8 +336,8 @@ def select_particles(particles, particle_log_probs, max_num_particles):
     selected_particles : [ Any ]
     selected_particle_log_probs : [ float ]
     """
-    sorted_log_probs, _, sorted_particles = (list(t) \
-        for t in zip(*sorted(zip(particle_log_probs, np.random.random(size=len(particles)), particles), reverse=True)))
+    sorted_log_probs, _, sorted_particles = (list(t)
+                                             for t in zip(*sorted(zip(particle_log_probs, np.random.random(size=len(particles)), particles), reverse=True)))
     end = min(max_num_particles, len(sorted_particles))
     try:
         idx = sorted_log_probs.index(-np.inf)
@@ -338,13 +346,14 @@ def select_particles(particles, particle_log_probs, max_num_particles):
         pass
     return sorted_particles[:end], sorted_log_probs[:end]
 
+
 @manage_cache(cache_dir, '.pkl')
 def train(base_class_name, demo_numbers, program_generation_step_size, num_programs, num_dts, max_num_particles):
     programs, program_prior_log_probs = get_program_set(base_class_name, num_programs)
 
     X, y = run_all_programs_on_demonstrations(base_class_name, num_programs, demo_numbers)
     plps, plp_priors = learn_plps(X, y, programs, program_prior_log_probs, num_dts=num_dts,
-        program_generation_step_size=program_generation_step_size)
+                                  program_generation_step_size=program_generation_step_size)
 
     demonstrations = get_demonstrations(base_class_name, demo_numbers=demo_numbers)
     likelihoods = compute_likelihood_plps(plps, demonstrations)
@@ -373,22 +382,25 @@ def train(base_class_name, demo_numbers, program_generation_step_size, num_progr
 
     return policy
 
-## Test (given subset of environments)
+# Test (given subset of environments)
+
+
 def test(policy, base_class_name, test_env_nums=range(11, 20), max_num_steps=50,
          record_videos=True, video_format='mp4'):
-    
+
     env_names = ['{}{}-v0'.format(base_class_name, i) for i in test_env_nums]
     envs = [gym.make(env_name) for env_name in env_names]
     accuracies = []
     for env in envs:
         video_out_path = '/tmp/lfd_{}.{}'.format(env.__class__.__name__, video_format)
-        result = run_single_episode(env, policy, max_num_steps=max_num_steps, 
-            record_video=record_videos, video_out_path=video_out_path) > 0
+        result = run_single_episode(env, policy, max_num_steps=max_num_steps,
+                                    record_video=record_videos, video_out_path=video_out_path) > 0
         accuracies.append(result)
 
     return accuracies
 
-if __name__  == "__main__":
+
+if __name__ == "__main__":
     policy = train("TwoPileNim", range(11), 1, 31, 5, 25)
-    test_results = test(policy, "TwoPileNim", range(11, 20), record_videos=False)
+    test_results = test(policy, "TwoPileNim", range(11, 20), record_videos=True)
     print("Test results:", test_results)

@@ -15,6 +15,7 @@ def get_path_to_leaf(leaf, parents):
 
     return reverse_path[::-1]
 
+
 def get_conjunctive_program(path, node_to_features, features, feature_log_probs):
     program = '('
     log_p = 0.
@@ -38,6 +39,7 @@ def get_conjunctive_program(path, node_to_features, features, feature_log_probs)
 
     return program, log_p
 
+
 def get_disjunctive_program(conjunctive_programs):
     if len(conjunctive_programs) == 0:
         return 'False'
@@ -45,11 +47,12 @@ def get_disjunctive_program(conjunctive_programs):
     program = ''
 
     for i, conjunctive_program in enumerate(conjunctive_programs):
-        program = program +'(' + conjunctive_program + ')'
+        program = program + '(' + conjunctive_program + ')'
         if i < len(conjunctive_programs) - 1:
             program = program + ' or '
 
     return program
+
 
 def extract_plp_from_dt(estimator, features, feature_log_probs):
     n_nodes = estimator.tree_.node_count
@@ -58,9 +61,10 @@ def extract_plp_from_dt(estimator, features, feature_log_probs):
     node_to_features = estimator.tree_.feature
     threshold = estimator.tree_.threshold
     value = estimator.tree_.value.squeeze()
-
+    if len(value.shape) == 1:
+        value = np.array([value])
     stack = [0]
-    parents = {0 : None}
+    parents = {0: None}
     true_leaves = []
 
     while len(stack) > 0:
@@ -72,7 +76,7 @@ def extract_plp_from_dt(estimator, features, feature_log_probs):
             parents[children_left[node_id]] = (node_id, 'left')
             stack.append(children_right[node_id])
             parents[children_right[node_id]] = (node_id, 'right')
-        elif value[node_id][1] > value[node_id][0]:
+        elif len(value[node_id]) >= 2 and value[node_id][1] > value[node_id][0]:
             true_leaves.append(node_id)
 
     paths_to_true_leaves = [get_path_to_leaf(leaf, parents) for leaf in true_leaves]
@@ -91,6 +95,3 @@ def extract_plp_from_dt(estimator, features, feature_log_probs):
         disjunctive_program = StateActionProgram(disjunctive_program)
 
     return disjunctive_program, program_log_prob
-
-
-

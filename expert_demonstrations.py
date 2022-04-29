@@ -5,27 +5,47 @@ import gym
 import os
 
 import numpy as np
+import pandas as pd
 
+
+def get_accessible_obs(obs, field_size=17):
+    obs = eval(obs.replace('.', ','))
+    o = np.array(obs).reshape((field_size*3, field_size))
+    agent = o[:field_size, :]
+    food = o[field_size:field_size*2, :]
+    access = o[field_size*2:, :]
+    nonzeros = np.nonzero(access)
+    x1, x2, y1, y2 = np.min(nonzeros[0]), np.max(nonzeros[0]) + 1, np.min(nonzeros[1]), np.max(nonzeros[1]) + 1
+    return agent[x1:x2, y1:y2], food[x1:x2, y1:y2]
 
 
 def get_demo(base_name, expert_policy, env_num, max_demo_length=np.inf):
     demonstrations = []
 
-    env = gym.make('{}{}-v0'.format(base_name, env_num))
-    layout = env.reset()
+    if base_name == 'ForagingEnv':
+        print('get run with id', env_num + 1)
+        df = pd.read_csv('../epymarl/collected-data/lbforaging_Foraging-grid-8x8-2p-3f-v2/1651074500.csv', index_col=0)
+        agent = df.loc[(df['agent_id'] == 0) & (df['run_id'] == env_num + 5)]
+        for _, row in agent.iterrows():
+            layout = get_accessible_obs(row.obs)
+            demonstrations.append((layout, row.action, eval(row.player_pos)))
+    else:
+        env = gym.make('{}{}-v0'.format(base_name, env_num))
+        layout = env.reset()
 
-    t = 0
-    while True:
-        action = expert_policy(layout)
-        demonstrations.append((layout, action))
-        layout, reward, done, _ = env.step(action)
-        t += 1
-        if done or (t >= max_demo_length):
-            if not reward > 0:
-                print("WARNING: demo did not succeed!")
-            break
+        t = 0
+        while True:
+            action = expert_policy(layout)
+            demonstrations.append((layout, action))
+            layout, reward, done, _ = env.step(action)
+            t += 1
+            if done or (t >= max_demo_length):
+                if not reward > 0:
+                    print("WARNING: demo did not succeed!")
+                break
 
     return demonstrations
+
 
 def expert_nim_policy(layout):
     r1 = np.max(np.argwhere(layout == tpn.EMPTY)[:, 0])
@@ -38,6 +58,7 @@ def expert_nim_policy(layout):
         c1 = 0
     return (r1, c1)
 
+
 def expert_checkmate_tactic_policy(layout):
     if np.any(layout == checkmate_tactic.WHITE_QUEEN):
         return tuple(np.argwhere(layout == checkmate_tactic.WHITE_QUEEN)[0])
@@ -46,6 +67,7 @@ def expert_checkmate_tactic_policy(layout):
     white_king_pos = np.argwhere(layout == checkmate_tactic.WHITE_KING)[0]
 
     return ((black_king_pos[0] + white_king_pos[0]) // 2, (black_king_pos[1] + white_king_pos[1]) // 2)
+
 
 def expert_stf_policy(layout):
     r, c = np.argwhere(layout == stf.FALLING)[0]
@@ -61,10 +83,11 @@ def expert_stf_policy(layout):
     r, c = np.argwhere(layout == stf.ADVANCE)[0]
     return (r, c)
 
+
 def expert_ec_policy(layout):
     r, c = np.argwhere(layout == ec.TARGET)[0]
     ra, ca = np.argwhere(layout == ec.AGENT)[0]
-    
+
     left_arrow = tuple(np.argwhere(layout == ec.LEFT_ARROW)[0])
     right_arrow = tuple(np.argwhere(layout == ec.RIGHT_ARROW)[0])
     up_arrow = tuple(np.argwhere(layout == ec.UP_ARROW)[0])
@@ -129,6 +152,7 @@ def expert_ec_policy(layout):
     # Wait
     return (0, 0)
 
+
 def expert_rfts_policy(layout):
     agent_r, agent_c = np.argwhere(layout == rfts.AGENT)[0]
     star_r, star_c = np.argwhere(layout == rfts.STAR)[0]
@@ -176,13 +200,20 @@ def expert_rfts_policy(layout):
         # move to the left
         return left_arrow
 
+
+def expert_foraging_policy(layout):
+    # we do not need this as we already have collected the data
+    pass
+
+
 def get_expert_policy(env_name):
     return {
-        'TwoPileNim' : expert_nim_policy,
-        'CheckmateTactic' : expert_checkmate_tactic_policy,
-        'StopTheFall' : expert_stf_policy,
-        'Chase' : expert_ec_policy,
-        'ReachForTheStar' : expert_rfts_policy
+        'TwoPileNim': expert_nim_policy,
+        'CheckmateTactic': expert_checkmate_tactic_policy,
+        'StopTheFall': expert_stf_policy,
+        'Chase': expert_ec_policy,
+        'ReachForTheStar': expert_rfts_policy,
+        'ForagingEnv': expert_foraging_policy
     }[env_name]
 
 
@@ -193,7 +224,8 @@ def get_demonstrations(env_name, demo_numbers=(1, 2, 3, 4), max_demo_length=np.i
     for i in demo_numbers:
         demonstrations += get_demo(env_name, expert_policy, i, max_demo_length=max_demo_length)
 
-    return [(np.array(l, dtype=object), a) for (l, a) in demonstrations]
+    return [(np.array(l, dtype=object), a, pos) for (l, a, pos) in demonstrations]
+
 
 def record_expert_demo(env_name, expert_policy, i, outdir, record_video=True):
     env = gym.make('{}{}-v0'.format(env_name, i))
@@ -211,8 +243,8 @@ def record_expert_demos(env_name, demo_numbers=(1, 2, 3, 4), outdir='/tmp', reco
 
 
 if __name__ == "__main__":
-    record_expert_demos('TwoPileNim', demo_numbers=(0,1,2))
-    record_expert_demos('CheckmateTactic', demo_numbers=(0,1,2))
-    record_expert_demos('Chase', demo_numbers=(0,1,2))
-    record_expert_demos('StopTheFall', demo_numbers=(0,1,2))
-    record_expert_demos('ReachForTheStar', demo_numbers=(0,1,2))
+    record_expert_demos('TwoPileNim', demo_numbers=(0, 1, 2))
+    record_expert_demos('CheckmateTactic', demo_numbers=(0, 1, 2))
+    record_expert_demos('Chase', demo_numbers=(0, 1, 2))
+    record_expert_demos('StopTheFall', demo_numbers=(0, 1, 2))
+    record_expert_demos('ReachForTheStar', demo_numbers=(0, 1, 2))
