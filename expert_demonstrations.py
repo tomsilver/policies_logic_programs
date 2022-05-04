@@ -7,28 +7,27 @@ import os
 import numpy as np
 import pandas as pd
 
-
-def get_accessible_obs(obs, field_size=17):
-    obs = eval(obs.replace('.', ','))
-    o = np.array(obs).reshape((field_size*3, field_size))
-    agent = o[:field_size, :]
-    food = o[field_size:field_size*2, :]
-    access = o[field_size*2:, :]
-    nonzeros = np.nonzero(access)
-    x1, x2, y1, y2 = np.min(nonzeros[0]), np.max(nonzeros[0]) + 1, np.min(nonzeros[1]), np.max(nonzeros[1]) + 1
-    return agent[x1:x2, y1:y2], food[x1:x2, y1:y2]
+from lbforaging.agents.expert_policy import expert_policy as expert_foraging_policy
 
 
-def get_demo(base_name, expert_policy, env_num, max_demo_length=np.inf):
+def get_demo(base_name, expert_policy, env_num, max_demo_length=50):
     demonstrations = []
 
     if base_name == 'ForagingEnv':
-        print('get run with id', env_num + 1)
-        df = pd.read_csv('../epymarl/collected-data/lbforaging_Foraging-grid-8x8-2p-3f-v2/1651074500.csv', index_col=0)
-        agent = df.loc[(df['agent_id'] == 0) & (df['run_id'] == env_num + 5)]
-        for _, row in agent.iterrows():
-            layout = get_accessible_obs(row.obs)
-            demonstrations.append((layout, row.action, eval(row.player_pos)))
+        env = gym.make("Foraging-grid-8x8-2p-3f-v2")
+        layout = env.reset()
+        info = env.get_player_pos_info()
+
+        t = 0
+        while True:
+            actions = expert_policy(layout, info)
+            demonstrations.append((layout[0], actions[0], info['player_pos'][0]))
+            layout, reward, done, info = env.step(actions)
+            if all(done) or t > max_demo_length:
+                if not sum(reward) > 0:
+                    print("WARNING: demo did not succeed!")
+                break
+
     else:
         env = gym.make('{}{}-v0'.format(base_name, env_num))
         layout = env.reset()
@@ -43,7 +42,6 @@ def get_demo(base_name, expert_policy, env_num, max_demo_length=np.inf):
                 if not reward > 0:
                     print("WARNING: demo did not succeed!")
                 break
-
     return demonstrations
 
 
@@ -199,11 +197,6 @@ def expert_rfts_policy(layout):
 
         # move to the left
         return left_arrow
-
-
-def expert_foraging_policy(layout):
-    # we do not need this as we already have collected the data
-    pass
 
 
 def get_expert_policy(env_name):

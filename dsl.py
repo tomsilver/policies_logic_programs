@@ -1,6 +1,7 @@
 import numpy as np
 from lbforaging.foraging.environment import CellEntity as lbc, Action as lba
 
+
 # Methods
 
 
@@ -35,7 +36,7 @@ def cell_is_value(value, action, obs, cell):
 
 def at_cell_with_value(value, local_program, action, obs):
     if value == lbc.FOOD.value:
-        matches = np.argwhere(obs[1] == value)
+        matches = np.argwhere(obs[1] > 0)
     else:
         matches = []
     if len(matches) == 0:
@@ -109,15 +110,15 @@ START, CONDITION, LOCAL_PROGRAM, DIRECTION, POSITIVE_NUM, NEGATIVE_NUM, VALUE = 
 
 def create_grammar(object_types):
     return {
-        START: ([['at_cell_with_value(', VALUE, ',', LOCAL_PROGRAM, ', a, s)'],
-                 # add methods for actions
-                 ['action_is_left(', LOCAL_PROGRAM, ', a, s, pos)'],
-                 ['action_is_right(', LOCAL_PROGRAM, ', a, s, pos)'],
-                 ['action_is_down(', LOCAL_PROGRAM, ', a, s, pos)'],
-                 ['action_is_up(', LOCAL_PROGRAM, ', a, s, pos)'],
-                 ['action_is_noop(', LOCAL_PROGRAM, ', a, s, pos)'],
-                 ['action_is_pickup(', LOCAL_PROGRAM, ', a, s, pos)']],
-                7*[1/7]),
+        START: ([  # ['at_cell_with_value(', VALUE, ',', LOCAL_PROGRAM, ', a, s)'],
+            # add methods for actions
+            ['action_is_left(', LOCAL_PROGRAM, ', a, s, pos)'],
+            ['action_is_right(', LOCAL_PROGRAM, ', a, s, pos)'],
+            ['action_is_down(', LOCAL_PROGRAM, ', a, s, pos)'],
+            ['action_is_up(', LOCAL_PROGRAM, ', a, s, pos)'],
+            ['action_is_noop(', LOCAL_PROGRAM, ', a, s, pos)'],
+            ['action_is_pickup(', LOCAL_PROGRAM, ', a, s, pos)']],
+            6*[1/6]),
         LOCAL_PROGRAM: ([[CONDITION],
                          ['lambda a, o, pos : shifted(', DIRECTION, ',', CONDITION, ', a, o, pos)']],
                         [0.5, 0.5]),
