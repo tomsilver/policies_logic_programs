@@ -8,24 +8,42 @@ import numpy as np
 import pandas as pd
 
 from lbforaging.agents.expert_policy import expert_policy as expert_foraging_policy
+from lbforaging.agents.expert_policy import get_accessible_obs
+
+global_demos = []
 
 
 def get_demo(base_name, expert_policy, env_num, max_demo_length=50):
     demonstrations = []
+    if len(global_demos) == 5:
+        if env_num < len(global_demos):
+            demonstrations = global_demos[env_num]
+        else:
+            # if index to large, just return first demo
+            demonstrations = global_demos[0]
 
-    if base_name == 'ForagingEnv':
-        env = gym.make("Foraging-grid-8x8-2p-3f-v2")
+    elif 'Foraging' in base_name:
+        env = gym.make(base_name)
         layout = env.reset()
         info = env.get_player_pos_info()
 
         t = 0
         while True:
             actions = expert_policy(layout, info)
-            demonstrations.append((layout[0], actions[0], info['player_pos'][0]))
+            for i, act in enumerate(actions):
+                obs = get_accessible_obs(layout[i])
+                demonstrations.append((obs[:2], actions[i].value, info['player_pos'][i]))
+
             layout, reward, done, info = env.step(actions)
             if all(done) or t > max_demo_length:
                 if not sum(reward) > 0:
                     print("WARNING: demo did not succeed!")
+
+                if len(demonstrations) > 10:
+                    print(f'Demo length: {len(demonstrations)}. Get new demo...')
+                    return get_demo(base_name, expert_policy, env_num, max_demo_length)
+
+                global_demos.append(demonstrations)
                 break
 
     else:
@@ -42,6 +60,10 @@ def get_demo(base_name, expert_policy, env_num, max_demo_length=50):
                 if not reward > 0:
                     print("WARNING: demo did not succeed!")
                 break
+
+    print('DEMO')
+    for obs, action, pos in demonstrations:
+        print(len(obs), obs[0].shape, pos, action)
     return demonstrations
 
 
@@ -200,13 +222,14 @@ def expert_rfts_policy(layout):
 
 
 def get_expert_policy(env_name):
+    if 'Foraging' in env_name:
+        return expert_foraging_policy
     return {
         'TwoPileNim': expert_nim_policy,
         'CheckmateTactic': expert_checkmate_tactic_policy,
         'StopTheFall': expert_stf_policy,
         'Chase': expert_ec_policy,
-        'ReachForTheStar': expert_rfts_policy,
-        'ForagingEnv': expert_foraging_policy
+        'ReachForTheStar': expert_rfts_policy
     }[env_name]
 
 

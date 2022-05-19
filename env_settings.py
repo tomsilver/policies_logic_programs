@@ -19,10 +19,10 @@ def get_object_types(base_class_name):
         return ('ec.EMPTY', 'ec.TARGET', 'ec.AGENT', 'ec.WALL', 'ec.DRAWN', 'ec.LEFT_ARROW', 'ec.RIGHT_ARROW', 'ec.UP_ARROW', 'ec.DOWN_ARROW', 'None')
     if base_class_name == 'ReachForTheStar':
         return ('rfts.EMPTY', 'rfts.AGENT', 'rfts.STAR', 'rfts.DRAWN', 'rfts.LEFT_ARROW', 'rfts.RIGHT_ARROW', 'None')
-    if base_class_name == 'ForagingEnv':
+    if 'Foraging' in base_class_name:
         # actions not used here as not in env obs:
         # 'lba.None', 'lba.NORTH', 'lba.SOUTH', 'lba.WEST', 'lba.EAST', 'lba.LOAD',
         # we also remove 'lbc.OUT_OF_BOUNDS', 'lbc.EMPTY.value', as our agent cannot move out of bounds?
-        return ('lbc.FOOD.value', 'lbc.AGENT.value')
+        return ('lbc.FOOD.value', 'lbc.EMPTY.value', 'lbc.AGENT.value')
 
     raise Exception("Unknown class name", base_class_name)
