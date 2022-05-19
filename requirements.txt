@@ -1,26 +1,10 @@
-certifi==2021.10.8
-cloudpickle==1.6.0
-cycler==0.11.0
-fonttools==4.33.3
-future==0.18.2
 -e git+https://github.com/tomsilver/generalization_grid_games.git@8a03c057c7a3d0921337fb89c6d3e3c4fe15a21d#egg=generalization_grid_games
 gym==0.18.0
-imageio==2.19.2
-joblib==1.1.0
-kiwisolver==1.4.2
+imageio
 -e git+https://github.com/ManuelEberhardinger/lb-foraging.git@a2e7de5566123c45b0058bf0d42af0cbd6a21dbc#egg=lbforaging
-matplotlib==3.5.2
-numpy==1.21.6
-packaging==21.3
-pandas==1.3.5
-Pillow==9.1.1
-pyglet==1.5.0
-pyparsing==3.0.9
-python-dateutil==2.8.2
-pytz==2022.1
-scikit-learn==1.0.2
-scipy==1.7.3
-six==1.16.0
-threadpoolctl==3.1.0
-tqdm==4.64.0
-typing_extensions==4.2.0
+matplotlib
+numpy
+pandas
+scikit-learn
+scipy
+tqdm
