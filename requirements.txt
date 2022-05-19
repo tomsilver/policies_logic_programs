@@ -8,7 +8,7 @@ gym==0.18.0
 imageio==2.19.2
 joblib==1.1.0
 kiwisolver==1.4.2
--e git+ssh://git@github.com/ManuelEberhardinger/lb-foraging.git@a2e7de5566123c45b0058bf0d42af0cbd6a21dbc#egg=lbforaging
+-e git+https://github.com/ManuelEberhardinger/lb-foraging.git@a2e7de5566123c45b0058bf0d42af0cbd6a21dbc#egg=lbforaging
 matplotlib==3.5.2
 numpy==1.21.6
 packaging==21.3
