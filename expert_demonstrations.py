@@ -10,19 +10,19 @@ import pandas as pd
 from lbforaging.agents.expert_policy import expert_policy as expert_foraging_policy
 from lbforaging.agents.expert_policy import get_accessible_obs
 
-global_demos = []
+#global_demos = []
 
 
 def get_demo(base_name, expert_policy, env_num, max_demo_length=50):
     demonstrations = []
-    if len(global_demos) == 5:
-        if env_num < len(global_demos):
-            demonstrations = global_demos[env_num]
-        else:
-            # if index to large, just return first demo
-            demonstrations = global_demos[0]
+    # if len(global_demos) == 5:
+    #    if env_num < len(global_demos):
+    #        demonstrations = global_demos[env_num]
+    #    else:
+    # if index to large, just return first demo
+    #         demonstrations = global_demos[0]
 
-    elif 'Foraging' in base_name:
+    if 'Foraging' in base_name:
         env = gym.make(base_name)
         layout = env.reset()
         info = env.get_player_pos_info()
@@ -43,7 +43,7 @@ def get_demo(base_name, expert_policy, env_num, max_demo_length=50):
                     print(f'Demo length: {len(demonstrations)}. Get new demo...')
                     return get_demo(base_name, expert_policy, env_num, max_demo_length)
 
-                global_demos.append(demonstrations)
+                # global_demos.append(demonstrations)
                 break
 
     else:
