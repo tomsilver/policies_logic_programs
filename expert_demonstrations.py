@@ -1,6 +1,6 @@
 from env_settings import *
 from utils import run_single_episode
-
+import time
 import gym
 import os
 
@@ -11,6 +11,37 @@ from lbforaging.agents.expert_policy import expert_policy as expert_foraging_pol
 from lbforaging.agents.expert_policy import get_accessible_obs
 
 #global_demos = []
+
+
+def run_foraging_policy(base_name, policy, max_demo_length=15, render=True):
+    env = gym.make(base_name)
+    layout = env.reset()
+    info = env.get_player_pos_info()
+    if render:
+        env.render()
+        time.sleep(0.5)
+    t = 0
+    rewards = 0.0
+    while True:
+        actions = []
+        for i in range(2):
+            obs = get_accessible_obs(layout[i])
+            pos = info['player_pos'][i]
+            #print(pos, policy[i](obs[:2], pos))
+            actions.append(policy[i](obs[:2], pos))
+
+        layout, reward, done, info = env.step(actions)
+        rewards += sum(reward)
+        t += 1
+        if render:
+            env.render()
+            time.sleep(0.5)
+        if render:
+            print(f'actions: {actions}, reward: {reward}, done: {done}')
+        if all(done) or t > max_demo_length:
+            if rewards >= 1.0 and render:
+                print("WARNING: demo did not succeed!")
+            return rewards
 
 
 def get_demo(base_name, expert_policy, env_num, max_demo_length=50):

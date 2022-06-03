@@ -51,7 +51,7 @@ class StateActionProgram(object):
 
 class PLPPolicy(object):
     def __init__(self, plps, probs, seed=0, map_choices=True):
-        assert abs(np.sum(probs) - 1.) < 1e-5
+        #assert abs(np.sum(probs) - 1.) < 1e-5
 
         self.plps = plps
         self.probs = probs

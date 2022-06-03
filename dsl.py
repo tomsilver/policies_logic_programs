@@ -154,7 +154,7 @@ def action_is_load(local_program, action, obs, pos):
 
 
 # Grammatical Prior
-START, FRUIT_DIRECTION, CONDITION, LOCAL_PROGRAM, SHIFTED, DIRECTION, POSITIVE_NUM, NEGATIVE_NUM, VALUE = range(7)
+START, FRUIT_DIRECTION, CONDITION, LOCAL_PROGRAM, SHIFTED, DIRECTION, POSITIVE_NUM, NEGATIVE_NUM, VALUE = range(9)
 
 
 def create_grammar(object_types):
@@ -166,39 +166,37 @@ def create_grammar(object_types):
             ['action_is_south(', LOCAL_PROGRAM, ', a, s, pos)'],
             ['action_is_north(', LOCAL_PROGRAM, ', a, s, pos)'],
             ['action_is_noop(', LOCAL_PROGRAM, ', a, s, pos)'],
-            ['action_is_load(', LOCAL_PROGRAM, ', a, s, pos)'],
-            [FRUIT_DIRECTION]],
-            7*[1/7]),
+            ['action_is_load(', LOCAL_PROGRAM, ', a, s, pos)']],
+            # [FRUIT_DIRECTION]],
+            6*[1/6]),
         FRUIT_DIRECTION: ([
             # methods for where the fruit is
-            ['lambda a, o, pos : fruit_is_east(o, pos)'],
-            ['lambda a, o, pos : fruit_is_south(o, pos)'],
-            ['lambda a, o, pos : fruit_is_west(o, pos)'],
-            ['lambda a, o, pos : fruit_is_north(o, pos)'],
-            ['lambda a, o, pos : fruit_is_pickable(o, pos)']],
+            ['fruit_is_east(s, pos)'],
+            ['fruit_is_south(s, pos)'],
+            ['fruit_is_west(s, pos)'],
+            ['fruit_is_north(s, pos)'],
+            ['fruit_is_pickable(s, pos)']],
             5*[1/5]),
         LOCAL_PROGRAM: ([[CONDITION],
-                         [CONDITION, ' and ', CONDITION],
+                         # ['(', CONDITION, ') and (', CONDITION, ')'],
                          [SHIFTED]],
-                        3*[1/3]),
-        SHIFTED: ([['lambda a, o, pos : shifted(', DIRECTION, ',', CONDITION, ', a, o, pos)'],
-                   ['lambda a, o, pos : shifted(', DIRECTION, ',', CONDITION, ' and ', CONDITION, ', a, o, pos)']],
-                  [0.5, 0.5]),
+                        2*[1/2]),
+        SHIFTED: ([['lambda a, o, pos : shifted(', DIRECTION, ',', CONDITION, ', a, o, pos)']],
+                  # ['lambda a, o, pos : shifted(', DIRECTION, ',', '(', CONDITION, ') and (', CONDITION, '), a, o, pos)']],
+                  [1]),
         CONDITION: ([['lambda a, o, pos : cell_is_value(', VALUE, ', a, o, pos)'],
                      ['lambda a, o, pos : action_is_executable(a, o, pos)'],
                      #['lambda a, o, pos : any_fruit_pickable(o, pos)'],
                      ['lambda a, o, pos : fruit_is_pickable(o, pos)'],
-                     [FRUIT_DIRECTION]],
+                     ['lambda a, s, pos : ', FRUIT_DIRECTION]],
                     4*[1/4]),
-        DIRECTION: ([['(', POSITIVE_NUM, ', 0)'], ['(0,', POSITIVE_NUM, ')'],
-                     ['(', NEGATIVE_NUM, ', 0)'], ['(0,', NEGATIVE_NUM, ')'],
-                     ['(', POSITIVE_NUM, ',', POSITIVE_NUM, ')'], ['(', NEGATIVE_NUM, ',', POSITIVE_NUM, ')'],
+        DIRECTION: ([['(', POSITIVE_NUM, ',', POSITIVE_NUM, ')'], ['(', NEGATIVE_NUM, ',', POSITIVE_NUM, ')'],
                      ['(', POSITIVE_NUM, ',', NEGATIVE_NUM, ')'], ['(', NEGATIVE_NUM, ',', NEGATIVE_NUM, ')']],
-                    [1./8] * 8),
-        POSITIVE_NUM: ([['1'], [POSITIVE_NUM, '+1']],
-                       [0.5, 0.5]),
-        NEGATIVE_NUM: ([['-1'], [NEGATIVE_NUM, '-1']],
-                       [0.5, 0.5]),
+                    [1./4] * 4),
+        POSITIVE_NUM: ([[str(i)] for i in range(5)],
+                       [1./5.] * 5),
+        NEGATIVE_NUM: ([[f'-{i}'] for i in range(5)],
+                       [1./5.] * 5),
         VALUE: (object_types,
                 [1./len(object_types) for _ in object_types])
     }

@@ -12,7 +12,7 @@ from functools import partial
 from sklearn.tree import DecisionTreeClassifier
 from scipy.special import logsumexp
 from scipy.sparse import csr_matrix, lil_matrix, vstack
-
+import random
 import gym
 import multiprocessing
 import numpy as np
@@ -60,6 +60,38 @@ def get_program_set(base_class_name, num_programs):
     return programs, program_prior_log_probs
 
 
+def fruit_is_east(obs, pos):
+    nearest_food = find_nearest_pickable_food(obs, pos)
+    return nearest_food[1] - pos[1] > 0 and abs(nearest_food[0] - pos[0]) > 0
+
+
+def fruit_is_south(obs, pos):
+    nearest_food = find_nearest_pickable_food(obs, pos)
+    return nearest_food[0] - pos[0] > 0 and abs(nearest_food[1] - pos[1]) > 0
+
+
+def fruit_is_west(obs, pos):
+    nearest_food = find_nearest_pickable_food(obs, pos)
+    return pos[1] - nearest_food[1] > 0 and abs(nearest_food[0] - pos[0]) > 0
+
+
+def fruit_is_north(obs, pos):
+    nearest_food = find_nearest_pickable_food(obs, pos)
+    return pos[0] - nearest_food[0] > 0 and abs(nearest_food[1] - pos[1]) > 0
+
+
+def is_fruit_direction_compatible_with_action(state, a, pos):
+    if a == lba.NORTH:
+        return fruit_is_north(state, pos)
+    if a == lba.SOUTH:
+        return fruit_is_south(state, pos)
+    if a == lba.EAST:
+        return fruit_is_east(state, pos)
+    if a == lba.WEST:
+        return fruit_is_west(state, pos)
+    return False
+
+
 def extract_examples_from_demonstration_item(demonstration_item):
     """
     Convert a demonstrated (state, action) into positive and negative classification data.
@@ -83,11 +115,15 @@ def extract_examples_from_demonstration_item(demonstration_item):
     positive_examples = [(state, action, pos)]
     negative_examples = []
 
-    for a in [lba.NONE, lba.NORTH, lba.SOUTH, lba.WEST, lba.EAST, lba.LOAD]:
+    for a in [lba.NORTH, lba.SOUTH, lba.WEST, lba.EAST, lba.LOAD]:
         if a.value == action:
             continue
 
-        negative_examples.append((state, a.value, pos))
+        if action == lba.LOAD.value:
+            negative_examples.append((state, a.value, pos))
+
+        if not is_fruit_direction_compatible_with_action(state, a, pos):
+            negative_examples.append((state, a.value, pos))
 
     return positive_examples, negative_examples
 
@@ -240,6 +276,7 @@ def learn_single_batch_decision_trees(y, num_dts, X_i):
     for seed in range(num_dts):
         clf = DecisionTreeClassifier(random_state=seed)
         clf.fit(X_i, y)
+        # print(clf.score(X_i, y))
         clfs.append(clf)
 
     return clfs
@@ -292,9 +329,10 @@ def compute_likelihood_single_plp(demonstrations, plp):
     ll = 0.
 
     for obs, action, pos in demonstrations:
-
+        # print(plp(obs, action, pos))
         if not plp(obs, action, pos):
-            return -np.inf
+            # instead of -np.inf
+            return -1000
 
         size = 1
 
@@ -347,40 +385,42 @@ def select_particles(particles, particle_log_probs, max_num_particles):
     return sorted_particles[:end], sorted_log_probs[:end]
 
 
-@manage_cache(cache_dir, '.pkl')
+# @manage_cache(cache_dir, '.pkl')
 def train(base_class_name, demo_numbers, program_generation_step_size, num_programs, num_dts, max_num_particles):
     programs, program_prior_log_probs = get_program_set(base_class_name, num_programs)
 
     X, y = run_all_programs_on_demonstrations(base_class_name, num_programs, demo_numbers)
     plps, plp_priors = learn_plps(X, y, programs, program_prior_log_probs, num_dts=num_dts,
                                   program_generation_step_size=program_generation_step_size)
+    print(f"learned {len(plps)} plps")
+    # demonstrations = get_demonstrations(base_class_name, demo_numbers=demo_numbers)
+    # likelihoods = compute_likelihood_plps(plps, demonstrations)
 
-    demonstrations = get_demonstrations(base_class_name, demo_numbers=demo_numbers)
-    likelihoods = compute_likelihood_plps(plps, demonstrations)
+    # particles = []
+    # particle_log_probs = []
 
-    particles = []
-    particle_log_probs = []
-
-    for plp, prior, likelihood in zip(plps, plp_priors, likelihoods):
-        particles.append(plp)
-        particle_log_probs.append(prior + likelihood)
-
+    # for plp, prior, likelihood in zip(plps, plp_priors, likelihoods):
+    #    #print(plp, prior, likelihood)
+    #    particles.append(plp)
+    #    particle_log_probs.append(prior + likelihood)
     print("\nDone!")
-    map_idx = np.argmax(particle_log_probs).squeeze()
-    print("MAP program ({}):".format(particle_log_probs[map_idx]))
-    print(particles[map_idx])
+    # map_idx = np.argmax(particle_log_probs).squeeze()
+    # print("MAP program ({}):".format(particle_log_probs[map_idx]))
+    # print(particles[map_idx])
+    print(plps[-1])
+    # top_particles, top_particle_log_probs = select_particles(particles, particle_log_probs, max_num_particles)
+    # if len(top_particle_log_probs) > 0:
+    #     top_particle_log_probs = np.array(top_particle_log_probs) - logsumexp(top_particle_log_probs)
+    #     top_particle_probs = np.exp(top_particle_log_probs)
+    #     print("top_particle_probs:", top_particle_probs)
+    #     policy = PLPPolicy(top_particles, top_particle_probs)
+    # else:
+    #     print("no nontrivial particles found")
+    #     policy = PLPPolicy([StateActionProgram("False")], [1.0])
 
-    top_particles, top_particle_log_probs = select_particles(particles, particle_log_probs, max_num_particles)
-    if len(top_particle_log_probs) > 0:
-        top_particle_log_probs = np.array(top_particle_log_probs) - logsumexp(top_particle_log_probs)
-        top_particle_probs = np.exp(top_particle_log_probs)
-        print("top_particle_probs:", top_particle_probs)
-        policy = PLPPolicy(top_particles, top_particle_probs)
-    else:
-        print("no nontrivial particles found")
-        policy = PLPPolicy([StateActionProgram("False")], [1.0])
-
-    return policy
+    p = random.choices(plps, k=max_num_particles)
+    p2 = random.choices(plps, k=max_num_particles)
+    return [PLPPolicy(p, len(p)*[-0.000000001]), PLPPolicy(p2, len(p)*[-0.000000001])]
 
 # Test (given subset of environments)
 
