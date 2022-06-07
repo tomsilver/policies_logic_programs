@@ -418,7 +418,7 @@ def train(base_class_name, demo_numbers, program_generation_step_size, num_progr
         #print(plp, prior, likelihood)
         print(prior, likelihood)
         particles.append(plp)
-        particle_log_probs.append(prior + likelihood)
+        particle_log_probs.append(likelihood)
     print("\nDone!")
     map_idx = np.argmax(particle_log_probs).squeeze()
     print("MAP program ({}):".format(particle_log_probs[map_idx]))
