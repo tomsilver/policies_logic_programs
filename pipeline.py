@@ -191,7 +191,7 @@ def run_all_programs_on_single_demonstration(base_class_name, num_programs, demo
     programs, _ = get_program_set(base_class_name, num_programs)
 
     demonstration = get_demonstrations(base_class_name, demo_numbers=(
-        demo_number,), csv_file='collected-data/foraging-grid-8x8-2p-3f-v2/1654606858.csv')
+        demo_number,), csv_file='./collected-data/foraging-grid-8x8-2p-3f-v2/1654606858.csv')
     positive_examples, negative_examples = extract_examples_from_demonstration(demonstration)
     y = [1] * len(positive_examples) + [0] * len(negative_examples)
 
