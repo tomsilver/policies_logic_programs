@@ -191,7 +191,7 @@ def run_all_programs_on_single_demonstration(base_class_name, num_programs, demo
     programs, _ = get_program_set(base_class_name, num_programs)
 
     demonstration = get_demonstrations(base_class_name, demo_numbers=(
-        demo_number,), csv_file='/home/ma/e/eberhardinger/workspaces/policies_logic_programs/collected-data/foraging-grid-8x8-2p-3f-v2/1654606858.csv')
+        demo_number,), csv_file='collected-data/foraging-grid-8x8-2p-3f-v2/1654615226.csv')
     positive_examples, negative_examples = extract_examples_from_demonstration(demonstration)
     y = [1] * len(positive_examples) + [0] * len(negative_examples)
 
@@ -422,8 +422,8 @@ def train(base_class_name, demo_numbers, program_generation_step_size, num_progr
     print("\nDone!")
     map_idx = np.argmax(particle_log_probs).squeeze()
     print("MAP program ({}):".format(particle_log_probs[map_idx]))
-    print(particles[map_idx])
-    print(plps[-1])
+    # print(particles[map_idx])
+    # print(plps[-1])
     top_particles, top_particle_log_probs = select_particles(particles, particle_log_probs, max_num_particles)
     if len(top_particle_log_probs) > 0:
         top_particle_log_probs = np.array(top_particle_log_probs) - logsumexp(top_particle_log_probs)
