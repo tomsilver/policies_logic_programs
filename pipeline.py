@@ -1,9 +1,10 @@
+from operator import index
 from cache_utils import manage_cache
 from dsl import *
 from env_settings import *
 from grammar_utils import generate_programs
 from dt_utils import extract_plp_from_dt
-from expert_demonstrations import get_demonstrations
+from expert_demonstrations import get_demonstrations, run_foraging_policy
 from policy import StateActionProgram, PLPPolicy
 from utils import run_single_episode
 
@@ -58,26 +59,6 @@ def get_program_set(base_class_name, num_programs):
     print("\nDone.")
 
     return programs, program_prior_log_probs
-
-
-def fruit_is_east(obs, pos):
-    nearest_food = find_nearest_pickable_food(obs, pos)
-    return nearest_food[1] - pos[1] > 0 and abs(nearest_food[0] - pos[0]) > 0
-
-
-def fruit_is_south(obs, pos):
-    nearest_food = find_nearest_pickable_food(obs, pos)
-    return nearest_food[0] - pos[0] > 0 and abs(nearest_food[1] - pos[1]) > 0
-
-
-def fruit_is_west(obs, pos):
-    nearest_food = find_nearest_pickable_food(obs, pos)
-    return pos[1] - nearest_food[1] > 0 and abs(nearest_food[0] - pos[0]) > 0
-
-
-def fruit_is_north(obs, pos):
-    nearest_food = find_nearest_pickable_food(obs, pos)
-    return pos[0] - nearest_food[0] > 0 and abs(nearest_food[1] - pos[1]) > 0
 
 
 def is_fruit_direction_compatible_with_action(state, a, pos):
@@ -176,7 +157,7 @@ def apply_programs(programs, fn_input):
     return x
 
 
-@manage_cache(cache_dir, ['.npz', '.pkl'])
+# @manage_cache(cache_dir, ['.npz', '.pkl'])
 def run_all_programs_on_single_demonstration(base_class_name, num_programs, demo_number, program_interval=1000):
     """
     Run all programs up to some iteration on one demonstration.
@@ -209,7 +190,8 @@ def run_all_programs_on_single_demonstration(base_class_name, num_programs, demo
 
     programs, _ = get_program_set(base_class_name, num_programs)
 
-    demonstration = get_demonstrations(base_class_name, demo_numbers=(demo_number,))
+    demonstration = get_demonstrations(base_class_name, demo_numbers=(
+        demo_number,), csv_file='/Users/manuel/workspaces/epymarl/collected-data/foraging-grid-8x8-2p-3f-v2/1654606858.csv')
     positive_examples, negative_examples = extract_examples_from_demonstration(demonstration)
     y = [1] * len(positive_examples) + [0] * len(negative_examples)
 
@@ -332,7 +314,7 @@ def compute_likelihood_single_plp(demonstrations, plp):
         # print(plp(obs, action, pos))
         if not plp(obs, action, pos):
             # instead of -np.inf
-            return -1000
+            return -np.inf
 
         size = 1
 
@@ -345,6 +327,38 @@ def compute_likelihood_single_plp(demonstrations, plp):
         ll += np.log(1. / size)
 
     return ll
+
+
+def compute_likelihood_single_plp_reward(base_class_name, players, plp):
+    ll = 0.0
+    plp_policies = PLPPolicy([plp], [1.0])
+    no_reward_count = 0
+    for _ in range(100):
+        if no_reward_count == 10:
+            return -np.inf
+        reward = run_foraging_policy(base_class_name, [plp_policies] * players, render=False, max_demo_length=20)
+        if reward == 0.0:
+            #no_reward_count += 1
+            reward = 0.1
+            # continue
+
+        #reward += 0.00001
+        ll += np.log(reward)
+    return ll
+
+
+def compute_likelihood_plps_reward(plps, base_class_name, players):
+    """
+    See compute_likelihood_single_plp.
+    """
+    num_workers = multiprocessing.cpu_count()
+    pool = multiprocessing.Pool(num_workers)
+
+    fn = partial(compute_likelihood_single_plp_reward, base_class_name, players)
+    likelihoods = pool.map(fn, plps)
+    pool.close()
+
+    return likelihoods
 
 
 def compute_likelihood_plps(plps, demonstrations):
@@ -387,40 +401,70 @@ def select_particles(particles, particle_log_probs, max_num_particles):
 
 # @manage_cache(cache_dir, '.pkl')
 def train(base_class_name, demo_numbers, program_generation_step_size, num_programs, num_dts, max_num_particles):
+    players = int(base_class_name[base_class_name.index('p')-1])
     programs, program_prior_log_probs = get_program_set(base_class_name, num_programs)
 
     X, y = run_all_programs_on_demonstrations(base_class_name, num_programs, demo_numbers)
     plps, plp_priors = learn_plps(X, y, programs, program_prior_log_probs, num_dts=num_dts,
                                   program_generation_step_size=program_generation_step_size)
     print(f"learned {len(plps)} plps")
-    # demonstrations = get_demonstrations(base_class_name, demo_numbers=demo_numbers)
-    # likelihoods = compute_likelihood_plps(plps, demonstrations)
+    #demonstrations = get_demonstrations(base_class_name, demo_numbers=demo_numbers)
+    likelihoods = compute_likelihood_plps_reward(plps, base_class_name, players)
 
-    # particles = []
-    # particle_log_probs = []
+    particles = []
+    particle_log_probs = []
 
-    # for plp, prior, likelihood in zip(plps, plp_priors, likelihoods):
-    #    #print(plp, prior, likelihood)
-    #    particles.append(plp)
-    #    particle_log_probs.append(prior + likelihood)
+    for plp, prior, likelihood in zip(plps, plp_priors, likelihoods):
+        #print(plp, prior, likelihood)
+        print(prior, likelihood)
+        particles.append(plp)
+        particle_log_probs.append(prior + likelihood)
     print("\nDone!")
-    # map_idx = np.argmax(particle_log_probs).squeeze()
-    # print("MAP program ({}):".format(particle_log_probs[map_idx]))
-    # print(particles[map_idx])
+    map_idx = np.argmax(particle_log_probs).squeeze()
+    print("MAP program ({}):".format(particle_log_probs[map_idx]))
+    print(particles[map_idx])
     print(plps[-1])
-    # top_particles, top_particle_log_probs = select_particles(particles, particle_log_probs, max_num_particles)
-    # if len(top_particle_log_probs) > 0:
-    #     top_particle_log_probs = np.array(top_particle_log_probs) - logsumexp(top_particle_log_probs)
-    #     top_particle_probs = np.exp(top_particle_log_probs)
-    #     print("top_particle_probs:", top_particle_probs)
-    #     policy = PLPPolicy(top_particles, top_particle_probs)
-    # else:
-    #     print("no nontrivial particles found")
-    #     policy = PLPPolicy([StateActionProgram("False")], [1.0])
+    top_particles, top_particle_log_probs = select_particles(particles, particle_log_probs, max_num_particles)
+    if len(top_particle_log_probs) > 0:
+        top_particle_log_probs = np.array(top_particle_log_probs) - logsumexp(top_particle_log_probs)
+        top_particle_probs = np.exp(top_particle_log_probs)
+        print("top_particle_probs:", top_particle_probs)
+        policy = PLPPolicy(top_particles, top_particle_probs)
+    else:
+        print("no nontrivial particles found")
+        policy = PLPPolicy([StateActionProgram("False")], [1.0])
 
-    p = random.choices(plps, k=max_num_particles)
-    p2 = random.choices(plps, k=max_num_particles)
-    return [PLPPolicy(p, len(p)*[-0.000000001]), PLPPolicy(p2, len(p)*[-0.000000001])]
+    print('MODEL SELECTION:')
+    best_plp_score = 0.0
+    plps_score = []
+    max_iter = 50
+    iter_count = 0
+    while max_iter > iter_count:
+        rewards = []
+        for d in range(100):
+            rewards.append(run_foraging_policy(base_class_name, [policy]*players, render=False, max_demo_length=20))
+        mean = np.array(rewards).mean()
+        #print(f'avg. reward after run {d+1}: ' + str(mean))
+        plps_score.append((policy, mean))
+        if mean > best_plp_score:
+            best_plp_score = mean
+            print(f'new best avg. reward after run {d+1}: ' + str(best_plp_score))
+        index_list = random.choices(range(len(plps)), k=max_num_particles)
+        selected_plps = [plps[i] for i in index_list]
+        selected_ll = [particle_log_probs[i] for i in index_list]
+        policy = PLPPolicy(selected_plps, selected_ll)
+        iter_count += 1
+
+    sorted_plps = sorted(plps_score, key=lambda score: score[1], reverse=True)[:10]
+    print('SCORES:')
+    for score in sorted_plps:
+        print(score[1])
+    best_policies = [plp[0] for plp in sorted_plps[:10]]
+
+    #p = random.choices(plps, k=max_num_particles)
+    #p2 = random.choices(plps, k=max_num_particles)
+    # return [PLPPolicy(p, len(p)*[-0.000000001]), PLPPolicy(p, len(p)*[-0.000000001])]
+    return best_policies
 
 # Test (given subset of environments)
 

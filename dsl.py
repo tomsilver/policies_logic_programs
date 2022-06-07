@@ -1,7 +1,12 @@
 import numpy as np
 from lbforaging.foraging.environment import CellEntity as lbc, Action as lba
+import queue
+import collections
 
-# Methods
+USE_COMMUNICATION = True
+
+help_channel = []
+pos_channel = []
 
 
 def closest_node(node, nodes, mask):
@@ -40,8 +45,20 @@ def find_nearest_pickable_food(obs, pos):
     food_lvls = [food[p[0], p[1]] for p in food_pos]
     can_not_pickup = [fl > agent_lvl for fl in food_lvls]
     if all(can_not_pickup):
+
+        if USE_COMMUNICATION and len(help_channel) > 0:
+            # if an element is in the help queue, use it in check if fruit is still present
+            return help_channel[0]
+
         can_not_pickup = [False for _ in food_lvls]
         nearest_food = food_pos[closest_node(pos, food_pos, can_not_pickup)]
+
+        if USE_COMMUNICATION:
+            # we send the food to the communication queue
+            t_nearest_food = tuple(nearest_food)
+            if t_nearest_food not in help_channel:
+                help_channel.append(t_nearest_food)
+
     else:
         nearest_food = food_pos[closest_node(pos, food_pos, can_not_pickup)]
     return nearest_food
@@ -153,22 +170,36 @@ def action_is_load(local_program, action, obs, pos):
     return local_program(action, obs, pos)
 
 
+def check_help_channel(local_program, action, obs, pos):
+    if USE_COMMUNICATION:
+        if len(help_channel) > 0:
+            fruit_pos = help_channel[0]
+            if not cell_is_value(lbc.FOOD.value, None, obs, fruit_pos):
+                # if the cell is empty, remove the message from the help channel
+                help_channel.pop(0)
+    return local_program(action, obs, pos)
+
+
 # Grammatical Prior
-START, FRUIT_DIRECTION, CONDITION, LOCAL_PROGRAM, SHIFTED, DIRECTION, POSITIVE_NUM, NEGATIVE_NUM, VALUE = range(9)
+HELP, START, FRUIT_DIRECTION, CONDITION, LOCAL_PROGRAM, SHIFTED, DIRECTION, POSITIVE_NUM, NEGATIVE_NUM, VALUE = range(
+    10)
 
 
 def create_grammar(object_types):
     return {
+        HELP: ([
+            ['check_help_channel(', START, ', a, s, pos)']
+        ], [1.0]),
         START: ([
             # add methods for actions
-            ['action_is_west(', LOCAL_PROGRAM, ', a, s, pos)'],
-            ['action_is_east(', LOCAL_PROGRAM, ', a, s, pos)'],
-            ['action_is_south(', LOCAL_PROGRAM, ', a, s, pos)'],
-            ['action_is_north(', LOCAL_PROGRAM, ', a, s, pos)'],
-            ['action_is_noop(', LOCAL_PROGRAM, ', a, s, pos)'],
-            ['action_is_load(', LOCAL_PROGRAM, ', a, s, pos)']],
+            ['lambda a, s, pos : action_is_west(', LOCAL_PROGRAM, ', a, s, pos)'],
+            ['lambda a, s, pos : action_is_east(', LOCAL_PROGRAM, ', a, s, pos)'],
+            ['lambda a, s, pos : action_is_south(', LOCAL_PROGRAM, ', a, s, pos)'],
+            ['lambda a, s, pos : action_is_north(', LOCAL_PROGRAM, ', a, s, pos)'],
+            #['lambda a, s, pos : action_is_noop(', LOCAL_PROGRAM, ', a, s, pos)'],
+            ['lambda a, s, pos : action_is_load(', LOCAL_PROGRAM, ', a, s, pos)']],
             # [FRUIT_DIRECTION]],
-            6*[1/6]),
+            5*[1/5]),
         FRUIT_DIRECTION: ([
             # methods for where the fruit is
             ['fruit_is_east(s, pos)'],

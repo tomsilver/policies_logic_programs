@@ -13,8 +13,10 @@ from lbforaging.agents.expert_policy import get_accessible_obs
 #global_demos = []
 
 
-def run_foraging_policy(base_name, policy, max_demo_length=15, render=True):
+def run_foraging_policy(base_name, policies, max_demo_length=15, render=True):
     env = gym.make(base_name)
+    players = int(base_name[base_name.index('p')-1])
+    #policy = [policy]*players
     layout = env.reset()
     info = env.get_player_pos_info()
     if render:
@@ -24,11 +26,11 @@ def run_foraging_policy(base_name, policy, max_demo_length=15, render=True):
     rewards = 0.0
     while True:
         actions = []
-        for i in range(2):
+        for i in range(players):
             obs = get_accessible_obs(layout[i])
             pos = info['player_pos'][i]
             #print(pos, policy[i](obs[:2], pos))
-            actions.append(policy[i](obs[:2], pos))
+            actions.append(policies[i](obs[:2], pos))
 
         layout, reward, done, info = env.step(actions)
         rewards += sum(reward)
@@ -42,6 +44,28 @@ def run_foraging_policy(base_name, policy, max_demo_length=15, render=True):
             if rewards >= 1.0 and render:
                 print("WARNING: demo did not succeed!")
             return rewards
+
+
+def get_accessible_obs_from_csv(obs, field_size=17):
+    obs = eval(obs.replace('.', ','))
+    o = np.array(obs).reshape((field_size*3, field_size))
+    agent = o[:field_size, :]
+    food = o[field_size:field_size*2, :]
+    access = o[field_size*2:, :]
+    nonzeros = np.nonzero(access)
+    x1, x2, y1, y2 = np.min(nonzeros[0]), np.max(nonzeros[0]) + 1, np.min(nonzeros[1]), np.max(nonzeros[1]) + 1
+    return agent[x1:x2, y1:y2], food[x1:x2, y1:y2]
+
+
+def get_demo_from_csv(csv, env_num):
+    demonstrations = []
+    print('get run with id', env_num + 1)
+    df = pd.read_csv(csv, index_col=0)
+    agent = df.loc[(df['agent_id'] == 0) & (df['run_id'] == env_num + 1)]
+    for _, row in agent.iterrows():
+        layout = get_accessible_obs_from_csv(row.obs)
+        demonstrations.append((layout, row.action, eval(row.player_pos)))
+    return demonstrations
 
 
 def get_demo(base_name, expert_policy, env_num, max_demo_length=50):
@@ -71,7 +95,7 @@ def get_demo(base_name, expert_policy, env_num, max_demo_length=50):
                     print("WARNING: demo did not succeed!")
 
                 if len(demonstrations) > 10:
-                    print(f'Demo length: {len(demonstrations)}. Get new demo...')
+                    #print(f'Demo length: {len(demonstrations)}. Get new demo...')
                     return get_demo(base_name, expert_policy, env_num, max_demo_length)
 
                 # global_demos.append(demonstrations)
@@ -92,9 +116,9 @@ def get_demo(base_name, expert_policy, env_num, max_demo_length=50):
                     print("WARNING: demo did not succeed!")
                 break
 
-    print('DEMO')
-    for obs, action, pos in demonstrations:
-        print(len(obs), obs[0].shape, pos, action)
+    # print('DEMO')
+    # for obs, action, pos in demonstrations:
+    #    print(len(obs), obs[0].shape, pos, action)
     return demonstrations
 
 
@@ -264,12 +288,15 @@ def get_expert_policy(env_name):
     }[env_name]
 
 
-def get_demonstrations(env_name, demo_numbers=(1, 2, 3, 4), max_demo_length=np.inf):
+def get_demonstrations(env_name, demo_numbers=(1, 2, 3, 4), max_demo_length=np.inf, csv_file=None):
     expert_policy = get_expert_policy(env_name)
     demonstrations = []
 
     for i in demo_numbers:
-        demonstrations += get_demo(env_name, expert_policy, i, max_demo_length=max_demo_length)
+        if csv_file:
+            demonstrations += get_demo_from_csv(csv_file, i)
+        else:
+            demonstrations += get_demo(env_name, expert_policy, i, max_demo_length=max_demo_length)
 
     return [(np.array(l, dtype=object), a, pos) for (l, a, pos) in demonstrations]
 
