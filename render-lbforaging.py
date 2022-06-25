@@ -19,7 +19,7 @@ def _game_loop(env, render, ppl, n_agents):
 
     if render:
         env.render()
-        time.sleep(0.5)
+        time.sleep(5)
 
     while not done:
         actions = []

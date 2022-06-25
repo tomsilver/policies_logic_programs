@@ -3,7 +3,7 @@ from lbforaging.foraging.environment import CellEntity as lbc, Action as lba
 import queue
 import collections
 
-USE_COMMUNICATION = True
+USE_COMMUNICATION = False
 
 help_channel = []
 pos_channel = []
@@ -181,23 +181,23 @@ def check_help_channel(local_program, action, obs, pos):
 
 
 # Grammatical Prior
-HELP, START, FRUIT_DIRECTION, CONDITION, LOCAL_PROGRAM, SHIFTED, DIRECTION, POSITIVE_NUM, NEGATIVE_NUM, VALUE = range(
-    10)
+START, FRUIT_DIRECTION, CONDITION, LOCAL_PROGRAM, SHIFTED, DIRECTION, POSITIVE_NUM, NEGATIVE_NUM, VALUE = range(
+    9)
 
 
 def create_grammar(object_types):
     return {
-        HELP: ([
-            ['check_help_channel(', START, ', a, s, pos)']
-        ], [1.0]),
+        # HELP: ([
+        #    ['check_help_channel(', START, ', a, s, pos)']
+        # ], [1.0]),
         START: ([
             # add methods for actions
-            ['lambda a, s, pos : action_is_west(', LOCAL_PROGRAM, ', a, s, pos)'],
-            ['lambda a, s, pos : action_is_east(', LOCAL_PROGRAM, ', a, s, pos)'],
-            ['lambda a, s, pos : action_is_south(', LOCAL_PROGRAM, ', a, s, pos)'],
-            ['lambda a, s, pos : action_is_north(', LOCAL_PROGRAM, ', a, s, pos)'],
+            ['action_is_west(', LOCAL_PROGRAM, ', a, s, pos)'],
+            ['action_is_east(', LOCAL_PROGRAM, ', a, s, pos)'],
+            ['action_is_south(', LOCAL_PROGRAM, ', a, s, pos)'],
+            ['action_is_north(', LOCAL_PROGRAM, ', a, s, pos)'],
             #['lambda a, s, pos : action_is_noop(', LOCAL_PROGRAM, ', a, s, pos)'],
-            ['lambda a, s, pos : action_is_load(', LOCAL_PROGRAM, ', a, s, pos)']],
+            ['action_is_load(', LOCAL_PROGRAM, ', a, s, pos)']],
             # [FRUIT_DIRECTION]],
             5*[1/5]),
         FRUIT_DIRECTION: ([
@@ -210,17 +210,13 @@ def create_grammar(object_types):
             5*[1/5]),
         LOCAL_PROGRAM: ([[CONDITION],
                          # ['(', CONDITION, ') and (', CONDITION, ')'],
-                         [SHIFTED]],
+                         ['lambda a, o, pos : shifted(', DIRECTION, ',', CONDITION, ', a, o, pos)']],
                         2*[1/2]),
-        SHIFTED: ([['lambda a, o, pos : shifted(', DIRECTION, ',', CONDITION, ', a, o, pos)']],
-                  # ['lambda a, o, pos : shifted(', DIRECTION, ',', '(', CONDITION, ') and (', CONDITION, '), a, o, pos)']],
-                  [1]),
         CONDITION: ([['lambda a, o, pos : cell_is_value(', VALUE, ', a, o, pos)'],
                      ['lambda a, o, pos : action_is_executable(a, o, pos)'],
                      #['lambda a, o, pos : any_fruit_pickable(o, pos)'],
-                     ['lambda a, o, pos : fruit_is_pickable(o, pos)'],
                      ['lambda a, s, pos : ', FRUIT_DIRECTION]],
-                    4*[1/4]),
+                    3*[1/3]),
         DIRECTION: ([['(', POSITIVE_NUM, ',', POSITIVE_NUM, ')'], ['(', NEGATIVE_NUM, ',', POSITIVE_NUM, ')'],
                      ['(', POSITIVE_NUM, ',', NEGATIVE_NUM, ')'], ['(', NEGATIVE_NUM, ',', NEGATIVE_NUM, ')']],
                     [1./4] * 4),

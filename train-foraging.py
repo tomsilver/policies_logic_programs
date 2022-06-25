@@ -19,6 +19,8 @@ parser.add_argument('--gen_prog_step_size', type=int, default=1,
                     help='the step size of the program generation loop')
 parser.add_argument('--env_name', type=str, default="Foraging-grid-6x6-2p-3f-v2",
                     help='the step size of the program generation loop')
+parser.add_argument('--policy_name', type=str, required=True,
+                    help='the policy file name')
 
 args = parser.parse_args()
 print('Train policy with args:', ' '.join(f'{k}={v}' for k, v in vars(args).items()))
@@ -26,7 +28,7 @@ print('Train policy with args:', ' '.join(f'{k}={v}' for k, v in vars(args).item
 policies = pipeline.train(args.env_name, range(args.n_demos), args.gen_prog_step_size,
                           args.num_programs, args.num_dt, args.max_num_particles)
 
-ppl_file = f'{args.env_name}_ppl.pkl'
+ppl_file = f'{args.policy_name}_ppl.pkl'
 print(f'saved policies to {ppl_file}')
 with open(ppl_file, 'wb') as f:
     pickle.dump(policies, f)
@@ -39,7 +41,7 @@ envs = [args.env_name, 'Foraging-grid-8x8-2p-4f-v2', 'Foraging-grid-12x12-2p-4f-
         'Foraging-grid-16x16-6p-6f-v2', 'Foraging-grid-18x18-6p-7f-v2']
 for i, e in enumerate(envs):
     rewards = []
-    for d in range(1000):
+    for d in range(100):
         rewards.append(run_foraging_policy(e, policies, render=False, max_demo_length=20*(i+1)))
     print(f'env: {e}, avg. reward after run {d+1}: ' + str(np.array(rewards).mean()))
 

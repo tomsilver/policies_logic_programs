@@ -94,4 +94,4 @@ def extract_plp_from_dt(estimator, features, feature_log_probs):
     if not isinstance(disjunctive_program, StateActionProgram):
         disjunctive_program = StateActionProgram(disjunctive_program)
 
-    return disjunctive_program, program_log_prob
+    return disjunctive_program, program_log_prob * 0.1

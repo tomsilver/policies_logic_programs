@@ -418,11 +418,11 @@ def train(base_class_name, demo_numbers, program_generation_step_size, num_progr
         #print(plp, prior, likelihood)
         print(prior, likelihood)
         particles.append(plp)
-        particle_log_probs.append(likelihood)
+        particle_log_probs.append(prior + likelihood)
     print("\nDone!")
     map_idx = np.argmax(particle_log_probs).squeeze()
     print("MAP program ({}):".format(particle_log_probs[map_idx]))
-    # print(particles[map_idx])
+    print(particles[map_idx])
     # print(plps[-1])
     top_particles, top_particle_log_probs = select_particles(particles, particle_log_probs, max_num_particles)
     if len(top_particle_log_probs) > 0:
@@ -449,7 +449,7 @@ def train(base_class_name, demo_numbers, program_generation_step_size, num_progr
         if mean > best_plp_score:
             best_plp_score = mean
             print(f'new best avg. reward after run {d+1}: ' + str(best_plp_score))
-        index_list = random.choices(range(len(plps)), k=max_num_particles)
+        index_list = random.sample(range(len(plps)), max_num_particles)
         selected_plps = [plps[i] for i in index_list]
         selected_ll = [particle_log_probs[i] for i in index_list]
         policy = PLPPolicy(selected_plps, selected_ll)
