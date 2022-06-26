@@ -264,7 +264,7 @@ def learn_single_batch_decision_trees(y, num_dts, X_i):
     return clfs
 
 
-def learn_plps(X, y, programs, program_prior_log_probs, num_dts=5, program_generation_step_size=10):
+def learn_plps(X, y, programs, program_prior_log_probs, num_dts=5, program_generation_step_size=10, prior_weight=0.1):
     """
     Parameters
     ----------
@@ -288,7 +288,7 @@ def learn_plps(X, y, programs, program_prior_log_probs, num_dts=5, program_gener
 
     for i in tqdm(range(0, num_programs, program_generation_step_size), desc="Learning plps with # programs"):
         for clf in learn_single_batch_decision_trees(y, num_dts, X[:, :i+1]):
-            plp, plp_prior_log_prob = extract_plp_from_dt(clf, programs, program_prior_log_probs)
+            plp, plp_prior_log_prob = extract_plp_from_dt(clf, programs, program_prior_log_probs, prior_weight)
             plps.append(plp)
             plp_priors.append(plp_prior_log_prob)
 
@@ -400,13 +400,13 @@ def select_particles(particles, particle_log_probs, max_num_particles):
 
 
 # @manage_cache(cache_dir, '.pkl')
-def train(base_class_name, demo_numbers, program_generation_step_size, num_programs, num_dts, max_num_particles):
+def train(base_class_name, demo_numbers, program_generation_step_size, num_programs, num_dts, max_num_particles, prior_weight):
     players = int(base_class_name[base_class_name.index('p')-1])
     programs, program_prior_log_probs = get_program_set(base_class_name, num_programs)
 
     X, y = run_all_programs_on_demonstrations(base_class_name, num_programs, demo_numbers)
     plps, plp_priors = learn_plps(X, y, programs, program_prior_log_probs, num_dts=num_dts,
-                                  program_generation_step_size=program_generation_step_size)
+                                  program_generation_step_size=program_generation_step_size, prior_weight=prior_weight)
     print(f"learned {len(plps)} plps")
     #demonstrations = get_demonstrations(base_class_name, demo_numbers=demo_numbers)
     likelihoods = compute_likelihood_plps_reward(plps, base_class_name, players)
@@ -416,7 +416,7 @@ def train(base_class_name, demo_numbers, program_generation_step_size, num_progr
 
     for plp, prior, likelihood in zip(plps, plp_priors, likelihoods):
         #print(plp, prior, likelihood)
-        print(prior, likelihood)
+        #print(prior, likelihood)
         particles.append(plp)
         particle_log_probs.append(prior + likelihood)
     print("\nDone!")

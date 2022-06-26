@@ -54,7 +54,7 @@ def get_disjunctive_program(conjunctive_programs):
     return program
 
 
-def extract_plp_from_dt(estimator, features, feature_log_probs):
+def extract_plp_from_dt(estimator, features, feature_log_probs, prior_weight):
     n_nodes = estimator.tree_.node_count
     children_left = estimator.tree_.children_left
     children_right = estimator.tree_.children_right
@@ -94,4 +94,4 @@ def extract_plp_from_dt(estimator, features, feature_log_probs):
     if not isinstance(disjunctive_program, StateActionProgram):
         disjunctive_program = StateActionProgram(disjunctive_program)
 
-    return disjunctive_program, program_log_prob * 0.1
+    return disjunctive_program, program_log_prob * prior_weight
