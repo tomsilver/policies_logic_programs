@@ -39,11 +39,11 @@ def expert_nim_policy(layout):
     return (r1, c1)
 
 def expert_checkmate_tactic_policy(layout):
-    if np.any(layout == checkmate_tactic.WHITE_QUEEN):
-        return tuple(np.argwhere(layout == checkmate_tactic.WHITE_QUEEN)[0])
+    if np.any(layout == ct.WHITE_QUEEN):
+        return tuple(np.argwhere(layout == ct.WHITE_QUEEN)[0])
 
-    black_king_pos = np.argwhere(layout == checkmate_tactic.BLACK_KING)[0]
-    white_king_pos = np.argwhere(layout == checkmate_tactic.WHITE_KING)[0]
+    black_king_pos = np.argwhere(layout == ct.BLACK_KING)[0]
+    white_king_pos = np.argwhere(layout == ct.WHITE_KING)[0]
 
     return ((black_king_pos[0] + white_king_pos[0]) // 2, (black_king_pos[1] + white_king_pos[1]) // 2)
 
